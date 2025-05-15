@@ -3,7 +3,6 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django_filters import rest_framework as filters
-from datetime import timedelta
 
 from .models import MuscleGroup, Workout, WorkoutMuscleGroup
 from .serializers import (
@@ -12,34 +11,16 @@ from .serializers import (
     MuscleGroupStatsSerializer
 )
 
-class MuscleGroupFilter(filters.FilterSet):
-    name = filters.CharFilter(lookup_expr='icontains')
-
-    class Meta:
-        model = MuscleGroup
-        fields = ['name']
-
 class MuscleGroupViewSet(viewsets.ModelViewSet):
     queryset = MuscleGroup.objects.all()
     serializer_class = MuscleGroupSerializer
-    filter_backends = (filters.DjangoFilterBackend,)
-    filterset_class = MuscleGroupFilter
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_fields = ['name']
 
 class WorkoutFilter(filters.FilterSet):
-    muscle_group = filters.NumberFilter(
-        field_name='workoutmusclegroup__muscle_group',
-        label='Filter by muscle group ID'
-    )
-    date_from = filters.DateFilter(
-        field_name='date_time', 
-        lookup_expr='gte',
-        label='Filter workouts from this date (YYYY-MM-DD)'
-    )
-    date_to = filters.DateFilter(
-        field_name='date_time', 
-        lookup_expr='lte',
-        label='Filter workouts to this date (YYYY-MM-DD)'
-    )
+    muscle_group = filters.NumberFilter(field_name='workoutmusclegroup__muscle_group')
+    date_from = filters.DateFilter(field_name='date_time', lookup_expr='gte')
+    date_to = filters.DateFilter(field_name='date_time', lookup_expr='lte')
 
     class Meta:
         model = Workout
@@ -48,7 +29,7 @@ class WorkoutFilter(filters.FilterSet):
 class WorkoutViewSet(viewsets.ModelViewSet):
     queryset = Workout.objects.all().order_by('-date_time')
     serializer_class = WorkoutSerializer
-    filter_backends = (filters.DjangoFilterBackend,)
+    filter_backends = [filters.DjangoFilterBackend]
     filterset_class = WorkoutFilter
 
     def get_queryset(self):
@@ -71,7 +52,6 @@ class WorkoutViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        """Получение статистики по тренировкам для всех групп мышц"""
         stats = []
         
         muscle_groups = MuscleGroup.objects.annotate(
@@ -108,7 +88,6 @@ class WorkoutViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='by-muscle-group/(?P<muscle_group_id>\d+)')
     def by_muscle_group(self, request, muscle_group_id=None):
-        """Получение всех тренировок для конкретной группы мышц"""
         try:
             muscle_group = MuscleGroup.objects.get(id=muscle_group_id)
         except MuscleGroup.DoesNotExist:
